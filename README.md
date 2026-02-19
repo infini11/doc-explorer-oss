@@ -6,9 +6,31 @@
 
 ## 📌 Project Overview
 
-Doc-Explorer OSS is a cloud-agnostic, production-ready MLOps platform designed to automate document ingestion, processing, model training, deployment, and monitoring.
+Doc-Explorer OSS is a cloud-agnostic, production-ready MLOps platform
+that industrializes end-to-end document intelligence pipelines from
+raw document ingestion to RAG-powered question answering.
 
-The platform industrializes a document intelligence system using open-source technologies and Kubernetes-based infrastructure.
+Built entirely on open-source technologies and Kubernetes-based
+infrastructure, the platform combines classical ML and LLMs to turn
+unstructured documents into structured, queryable knowledge.
+
+## What it does
+
+A document goes in. Knowledge comes out.
+
+1. **Ingest** — REST API validates and stores any document (PDF, DOCX, TXT)
+2. **Process** — LLM extracts entities and builds a knowledge graph
+3. **Train**  — XGBoost classifies documents using LLM-generated embeddings
+4. **Serve**  — RAG pipeline answers natural language questions over documents
+5. **Monitor** — Embedding drift and model performance tracked in real time
+
+## Use case — Medical AI Assistant
+
+Demonstrated on a medical document corpus where the system answers:
+> "What are the causes, symptoms and treatments of type 2 diabetes?"
+
+Not by retrieving similar snippets — but by traversing structured
+medical knowledge extracted from source documents.
 
 It ensures:
 
