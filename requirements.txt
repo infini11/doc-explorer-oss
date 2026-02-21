@@ -1,0 +1,36 @@
+# API
+fastapi[standard]
+uvicorn[standard]
+python-multipart
+pydantic>=2.7
+pydantic-settings>=2.2
+
+# LangChain + LangGraph + LLM
+langchain
+langchain-community
+langchain-text-splitters
+langgraph
+sentence-transformers
+faiss-cpu
+ollama
+
+# ML
+xgboost>=2.0
+scikit-learn>=1.5
+numpy>=1.26
+pandas>=2.2
+
+# MLflow
+mlflow>=2.13
+
+# Dataset
+datasets>=2.19
+
+# Monitoring
+evidently>=0.4
+
+# Orchestration
+apache-airflow>=3.1
+
+# Logging
+structlog>=24.1
