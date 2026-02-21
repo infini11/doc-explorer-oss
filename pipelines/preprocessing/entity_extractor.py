@@ -127,3 +127,5 @@ if __name__ == "__main__":
     if entities:
         print("\n✅ Extracted entities :")
         print(json.dumps(entities.model_dump(), indent=2))
+
+        

@@ -6,3 +6,5 @@ class MedicalEntities(BaseModel):
     causes: list[str] = Field(description="List of causes or risk factors")
     treatments: list[str] = Field(description="List of recommended treatments")
     severity: str = Field(description="Severity : low | medium | high")
+
+    
