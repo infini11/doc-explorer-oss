@@ -1,0 +1,74 @@
+# =============================================================================
+# docker-compose.yml — Orchestrate services of Doc-Explorer OSS
+# =============================================================================
+services:
+  ollama:
+    image: ollama/ollama:latest
+
+    container_name: doc-explorer-ollama
+
+    # “tail -f /dev/null” keeps the container alive after the pull
+    entrypoint: >
+      bash -c "ollama serve &
+               sleep 5 &&
+               ollama pull llama3.1 &&
+               tail -f /dev/null"
+
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    
+    networks:
+      - doc-explorer-net
+
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s    # waiting for Ollama + the pull of llama3.1
+
+    restart: unless-stopped
+    
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+
+    container_name: doc-explorer-api
+
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - ./storage:/app/storage
+    
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - LOG_FORMAT=json
+      - ENV=dev
+
+    env_file:
+      - .env
+    
+    depends_on:
+      ollama:
+          condition: service_healthy
+    
+    networks:
+      - doc-explorer-net
+
+    restart: unless-stopped
+  
+volumes:
+  ollama-data:    # Ollama models downloaded (llama3.1 ~4GB)
+  
+networks:
+  doc-explorer-net:
+    driver: bridge  # bridge = virtual local network created by Docker.
+
