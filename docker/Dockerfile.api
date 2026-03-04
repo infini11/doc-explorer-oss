@@ -1,0 +1,50 @@
+# =============================================================================
+# Dockerfile.api — Container de l'API FastAPI
+# =============================================================================
+
+FROM python:3.11-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libmagic1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+FROM python:3.11-slim AS runtime
+
+# Only reinstall libmagic1 (required for execution, not just for building)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libmagic1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy dependencies installed from the “builder” stage
+# “--from=builder” = retrieve files from the previous stage
+COPY --from=builder /install /usr/local
+
+# We only copy what the API needs to keep the image lightweight.
+COPY api/        ./api/
+COPY pipelines/  ./pipelines/
+
+# Create persistent storage directories
+RUN mkdir -p storage/uploads storage/faiss_index storage/knowledge_graph storage/models
+
+# Create a dedicated user without privileges
+RUN useradd --no-create-home --shell /bin/false appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+# Checks that the API responds every 30 seconds
+# --fail = returns an error code if the HTTP status >= 400
+# Used by docker-compose for “depends_on: condition: service_healthy”
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"
+
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
