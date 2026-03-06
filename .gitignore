@@ -1,0 +1,57 @@
+# ======================================================================
+# .gitignore — Doc-Explorer OSS
+# ======================================================================
+
+# ── Environment ───────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Python ────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# ── Testing & Linting ─────────────────────────────────────────────────
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── Storage (uploaded files, models, indexes — can be GBs) ───────────
+storage/uploads/
+storage/faiss_index/
+storage/models/
+storage/knowledge_graph/
+
+# ── MLflow ────────────────────────────────────────────────────────────
+mlflow/
+mlruns/
+
+# ── Jupyter ───────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── IDE ───────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── OS ────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Docker ────────────────────────────────────────────────────────────
+# Keep docker-compose.yml and Dockerfiles — ignore only local overrides
+docker-compose.override.yml
