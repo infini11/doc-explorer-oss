@@ -49,9 +49,17 @@ services:
       - ./storage:/app/storage
     
     environment:
-      - OLLAMA_HOST=http://ollama:11434
-      - LOG_FORMAT=json
-      - ENV=dev
+      - OLLAMA_HOST
+      - LOG_FORMAT
+      - ENV
+      - DEBUG
+      - MLFLOW_TRACKING_URI
+      - MLFLOW_EXPERIMENT_NAME
+      - CHUNK_SIZE
+      - CHUNK_OVERLAP
+      - EMBEDDING_MODEL
+      - KG_STORE_PATH
+      - FAISS_INDEX_DIR
 
     env_file:
       - .env

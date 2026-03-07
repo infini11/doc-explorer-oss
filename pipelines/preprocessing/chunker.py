@@ -23,6 +23,7 @@ Flux :
       ↓
   storage/faiss_index/{document_id}/
 """
+import os
 import sys
 import logging
 from pathlib import Path
@@ -37,19 +38,17 @@ logger = logging.getLogger(__name__)
 # Size of a chunk in characters.
 # 512 is a good compromise: large enough to provide context,
 # small enough to fit within the LLM's attention window.
-CHUNK_SIZE = 512
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE"))
 
 # Overlap between two consecutive chunks.
 # Avoid splitting a sentence in two and losing the meaning at the junction.
-CHUNK_OVERLAP = 64
-
+CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP"))
 # Lightweight open-source embedding model (~90MB, dimension 384).
 # Automatically downloaded from HuggingFace on first call.
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 
 # FAISS index storage directory
-FAISS_DIR = Path("storage/faiss_index")
-
+FAISS_DIR = Path(os.getenv("FAISS_DIR"))
 
 class Chunker:
     """Responsible for:

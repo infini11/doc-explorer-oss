@@ -9,6 +9,7 @@ In our case, LangGraph orchestrates:
 
 """
 
+import os
 import sys
 import json
 import logging
@@ -24,7 +25,7 @@ from pipelines.schemas.medicalstate import MedicalState
 
 logger = logging.getLogger(__name__)
 
-STORE_PATH = Path("storage/knowledge_graph/entities.json")
+STORE_PATH = Path(os.getenv("KG_STORE_PATH"))
 STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 class MedicalKnowledgeGraph:
