@@ -1,0 +1,24 @@
+FROM python:3.10-slim
+
+RUN pip install mlflow==2.17.2
+
+# Create mlflow user
+RUN useradd -m mlflowuser
+
+# Create directories with correct permissions
+RUN mkdir -p /mlflow/artifacts && \
+    chown -R mlflowuser:mlflowuser /mlflow
+
+USER mlflowuser
+WORKDIR /home/mlflowuser
+
+ENV PATH="/home/mlflowuser/.local/bin:$PATH"
+
+# Fix permissions after volume mount, then start server
+ENTRYPOINT ["sh", "-c", "mkdir -p /mlflow/artifacts && \
+    mlflow server \
+    --backend-store-uri sqlite:////mlflow/mlflow.db \
+    --default-artifact-root /mlflow/artifacts \
+    --serve-artifacts \
+    --host 0.0.0.0 \
+    --port 5000"]
