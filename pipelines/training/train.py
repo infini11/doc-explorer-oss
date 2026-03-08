@@ -1,8 +1,11 @@
+import os
 import json
 import logging
 import numpy as np
 from pathlib import Path
 
+import mlflow
+import mlflow.xgboost
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 from sklearn.preprocessing import LabelEncoder
@@ -13,8 +16,10 @@ from datasets import load_dataset
 logger = logging.getLogger(__name__)
 
 # Parameters
-EMBEDDING_MODEL      = "sentence-transformers/all-MiniLM-L6-v2"
-MODEL_DIR            = Path("storage/models")
+EMBEDDING_MODEL      = os.getenv("EMBEDDING_MODEL")
+MLFLOW_TRACKING_URI  = os.getenv("MLFLOW_TRACKING_URI")
+EXPERIMENT_NAME      = os.getenv("EXPERIMENT_NAME")
+MODEL_DIR            = Path(os.getenv("MODEL_OUTPUT_DIR"))
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -101,7 +106,8 @@ def embed_texts(texts: list[str]) -> np.ndarray:
 
 def train(
     texts: list[str],
-    labels: list[str]
+    labels: list[str],
+    run_name: str = "xgboost-doc-classifier",
 ) -> XGBClassifier:
     """
     Trains the XGBoost classifier.
@@ -135,38 +141,66 @@ def train(
         random_state=42,
     )
 
-    # Training
-    model.fit(
-        X_train, y_train,
-        eval_set=[(X_test, y_test)],
-        verbose=False,
-    )
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(EXPERIMENT_NAME)
 
-    # Metrics
-    y_pred = model.predict(X_test)
-    acc    = accuracy_score(y_test, y_pred)
-    f1     = f1_score(y_test, y_pred, average="weighted")
-    report = classification_report(y_test, y_pred, target_names=le.classes_)
+    with mlflow.start_run(run_name=run_name):
 
-    # Log classification report as artifact
-    report_path = MODEL_DIR / "classification_report.txt"
-    report_path.write_text(report)
+        # Training
+        model.fit(
+            X_train, y_train,
+            eval_set=[(X_test, y_test)],
+            verbose=False,
+        )
 
-    # Log class mapping as artifact
-    classes_path = MODEL_DIR / "label_encoder_classes.json"
-    classes_path.write_text(json.dumps(list(le.classes_)))
+        # Metrics
+        y_pred = model.predict(X_test)
+        acc    = accuracy_score(y_test, y_pred)
+        f1     = f1_score(y_test, y_pred, average="weighted")
+        report = classification_report(y_test, y_pred, target_names=le.classes_)
 
-    # Also save locally
-    local_model_path = MODEL_DIR / "doc_classifier.json"
-    model.save_model(str(local_model_path))
+        # Log parameters
+        mlflow.log_params({
+            "embedding_model": EMBEDDING_MODEL,
+            "n_estimators":    100,
+            "max_depth":       4,
+            "learning_rate":   0.1,
+            "train_size":      len(X_train),
+            "test_size":       len(X_test),
+            "classes":         list(le.classes_),
+            "n_classes":       len(le.classes_),
+        })
 
-    # Output summary
-    print(f"\n{'='*50}")
-    print(f"{'='*50}")
-    print(f" Accuracy   : {acc:.4f}")
-    print(f" F1 score   : {f1:.4f}")
-    print(f"\n{report}")
-    print(f" Model saved → {local_model_path}")
+        # Log metrics
+        mlflow.log_metrics({
+            "accuracy":   round(acc, 4),
+            "f1_weighted": round(f1, 4),
+        })
+
+        # Log XGBoost model
+        local_model_path = MODEL_DIR / "doc_classifier.json"
+        model.save_model(str(local_model_path))
+        mlflow.log_artifact(str(local_model_path), artifact_path="model")
+
+        # Log classification report
+        report_path = MODEL_DIR / "classification_report.txt"
+        report_path.write_text(report)
+        mlflow.log_artifact(str(report_path), artifact_path="reports")
+
+        # Log class mapping
+        classes_path = MODEL_DIR / "label_encoder_classes.json"
+        classes_path.write_text(json.dumps(list(le.classes_)))
+        mlflow.log_artifact(str(classes_path), artifact_path="reports")
+
+        # Output summary
+        print(f"\n{'='*50}")
+        print(f" MLflow run : {run_name}")
+        print(f"{'='*50}")
+        print(f" Accuracy   : {acc:.4f}")
+        print(f" F1 score   : {f1:.4f}")
+        print(f"\n{report}")
+        print(f" Model saved → {local_model_path}")
+        print(f" MLflow UI   → {MLFLOW_TRACKING_URI}")
 
     logger.info(f"Training done — accuracy={acc:.4f} f1={f1:.4f}")
     return model
@@ -213,7 +247,7 @@ if __name__ == "__main__":
     texts, labels = load_chatdoctor(n=300)
 
     print("\nStarting training...")
-    model = train(texts, labels)
+    model = train(texts, labels, run_name="chatdoctor-severity-v1")
 
     # Prediction test
     print("\n--- Prediction test ---")
@@ -222,4 +256,3 @@ if __name__ == "__main__":
     print(f"Text      : {test_text}")
     print(f"Label     : {result['label']} (confidence: {result['confidence']})")
     print(f"Scores    : {result['all_scores']}")
-    
