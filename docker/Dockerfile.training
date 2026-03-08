@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install only what train.py actually needs
+COPY requirements_training.txt .
+RUN pip install --no-cache-dir -r requirements_training.txt
+
+COPY pipelines/training/train.py ./pipelines/training/train.py
+
+RUN mkdir -p storage/models
+
+# Override the hardcoded MLFLOW_TRACKING_URI from train.py
+# "mlflow" = service name in docker-compose, not localhost
+ENV MLFLOW_TRACKING_URI=http://mlflow:5000
+
+CMD ["python", "pipelines/training/train.py"]

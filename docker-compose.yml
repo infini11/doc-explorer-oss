@@ -100,10 +100,44 @@ services:
       - doc-explorer-net
 
     restart: unless-stopped
+
+  training:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.training
+
+    container_name: doc-explorer-training
+
+    profiles:
+      - training
+
+    volumes:
+      - ./storage:/app/storage
+      - mlflow-data:/mlflow 
+      - huggingface-cache:/root/.cache/huggingface
+    
+    environment:
+      - MLFLOW_TRACKING_URI
+      - EXPERIMENT_NAME
+      - EMBEDDING_MODEL
+      - MODEL_DIR
+    
+    env_file:
+      - .env
+    
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    
+    networks:
+      - doc-explorer-net
+
+    restart: unless-stopped
   
 volumes:
   ollama-data:    # Ollama models downloaded (llama3.1 ~4GB)
   mlflow-data:
+  huggingface-cache:
   
 networks:
   doc-explorer-net:
