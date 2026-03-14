@@ -1,0 +1,11 @@
+mlflow==2.21.0
+ 
+# ML (pour les DAGs de training)
+xgboost>=2.0
+scikit-learn>=1.5
+numpy>=1.26
+pandas>=2.2
+ 
+# Embeddings
+sentence-transformers
+langchain-community

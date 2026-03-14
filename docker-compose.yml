@@ -1,6 +1,41 @@
 # =============================================================================
 # docker-compose.yml — Orchestrate services of Doc-Explorer OSS
 # =============================================================================
+
+x-airflow-common:
+  &airflow-common
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.airflow
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_AIRFLOW}
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_AIRFLOW}
+    AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+    AIRFLOW__CORE__ENABLE_XCOM_PICKLING: 'true'
+    PYTHONPATH: '/opt/airflow'
+  volumes:
+    - ./pipelines/airflow_dags:/opt/airflow/dags
+    - ./storage/logs/airflow:/opt/airflow/logs
+    - ./storage:/opt/airflow/storage
+    - ./scripts:/opt/airflow/scripts
+    - ./storage/models:/opt/airflow/models
+    - ./pipelines:/opt/airflow/src
+  user: "${AIRFLOW_UID}:0"
+  networks:
+    - doc-explorer-net
+  depends_on:
+    redis:
+      condition: service_healthy
+    postgres:
+      condition: service_healthy
+
+
 services:
 
   # INFRASTRUCTURE
@@ -137,6 +172,92 @@ services:
       - doc-explorer-net
     restart: unless-stopped
 
+  # AIRFLOW
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: doc-explorer-airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username ${AIRFLOW_USER:-admin} \
+          --password ${AIRFLOW_PASSWORD:-admin} \
+          --firstname Admin \
+          --lastname Admin \
+          --role Admin \
+          --email admin@doc-explorer.local || true
+        echo "✅ Airflow initialized"
+    environment:
+      <<: *airflow-common-env
+    restart: on-failure
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: doc-explorer-airflow-webserver
+    command: webserver
+    ports:
+      - "${AIRFLOW_PORT}:8080"
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: doc-explorer-airflow-scheduler
+    command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  airflow-worker:
+    <<: *airflow-common
+    hostname: airflow-worker
+    container_name: doc-explorer-airflow-worker
+    command: celery worker
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - 'celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   # TRAINING
   training:
     build:
@@ -164,7 +285,7 @@ services:
     depends_on:
       mlflow:
         condition: service_healthy
-
+        
     networks:
       - doc-explorer-net
     restart: no
