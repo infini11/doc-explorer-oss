@@ -15,7 +15,9 @@ setup: ## Create .env from .env.local and storage directories
 	else \
 		echo "ℹ️  .env already exists"; \
 	fi
-	@mkdir -p storage/uploads storage/faiss_index storage/knowledge_graph storage/models
+	@mkdir -p storage/uploads storage/faiss_index storage/knowledge_graph storage/models storage/logs/airflow
+	@mkdir -p storage/logs/airflow/scheduler
+	@sudo chown -R 50000:0 storage/logs/airflow
 	@echo "✅ Storage directories created"
 
 # DOCKER — Main services (api + mlflow + ollama)
@@ -43,6 +45,18 @@ api-logs: ## Follow API logs only
 
 mlflow-logs: ## Follow MLflow logs only
 	$(COMPOSE) logs -f mlflow
+
+airflow-scheduler-logs: ## Follow Airflow logs only
+	$(COMPOSE) logs -f airflow-scheduler
+
+airflow-webserver-logs: ## Follow Airflow webserver logs only
+	$(COMPOSE) logs -f airflow-webserver
+
+airflow-worker-logs: ## Follow Airflow worker logs only
+	$(COMPOSE) logs -f airflow-worker
+
+airflow-logs: ## Follow Airflow logs only
+	$(COMPOSE) logs -f airflow-scheduler airflow-webserver
 
 ollama-logs: ## Follow Ollama logs only
 	$(COMPOSE) logs -f ollama
