@@ -2,6 +2,7 @@
 # docker-compose.yml — Orchestrate services of Doc-Explorer OSS
 # =============================================================================
 services:
+  # ML SERVICES
   ollama:
     image: ollama/ollama:latest
 
@@ -15,10 +16,10 @@ services:
                tail -f /dev/null"
 
     ports:
-      - "11434:11434"
+      - "${OLLAMA_PORT}:11434"
     volumes:
       - ollama-data:/root/.ollama
-    
+
     networks:
       - doc-explorer-net
 
@@ -31,8 +32,7 @@ services:
       interval: 30s
       timeout: 15s
       retries: 5
-      start_period: 60s    # waiting for Ollama + the pull of llama3.1
-
+      start_period: 60s
     restart: unless-stopped
 
   mlflow:
@@ -41,16 +41,12 @@ services:
       dockerfile: docker/Dockerfile.mlflow
 
     container_name: doc-explorer-mlflow
-
-    networks:
-      - doc-explorer-net
-
+    ports:
+      - "${MLFLOW_PORT}:5000"
     volumes:
       - mlflow-data:/mlflow
-
-    ports:
-      - "5000:5000" 
-    
+    networks:
+      - doc-explorer-net
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:5000')"]
@@ -60,7 +56,9 @@ services:
       start_period: 30s
 
     restart: unless-stopped
-    
+
+  # API
+
   api:
     build:
       context: .
@@ -69,11 +67,11 @@ services:
     container_name: doc-explorer-api
 
     ports:
-      - "8000:8000"
+      - "${API_PORT}:8000"
 
     volumes:
       - ./storage:/app/storage
-    
+      
     environment:
       - OLLAMA_HOST
       - LOG_FORMAT
@@ -89,18 +87,17 @@ services:
 
     env_file:
       - .env
-    
+
     depends_on:
       mlflow:
         condition: service_healthy
       ollama:
-          condition: service_healthy
-    
+        condition: service_healthy
+
     networks:
       - doc-explorer-net
-
     restart: unless-stopped
-
+  # TRAINING
   training:
     build:
       context: .
@@ -113,9 +110,8 @@ services:
 
     volumes:
       - ./storage:/app/storage
-      - mlflow-data:/mlflow 
+      - mlflow-data:/mlflow
       - huggingface-cache:/root/.cache/huggingface
-    
     environment:
       - MLFLOW_TRACKING_URI
       - EXPERIMENT_NAME
@@ -124,21 +120,21 @@ services:
     
     env_file:
       - .env
-    
+
     depends_on:
       mlflow:
         condition: service_healthy
-    
+
     networks:
       - doc-explorer-net
+    restart: no
 
-    restart: unless-stopped
-  
+
 volumes:
   ollama-data:    # Ollama models downloaded (llama3.1 ~4GB)
   mlflow-data:
   huggingface-cache:
-  
+
 networks:
   doc-explorer-net:
     driver: bridge  # bridge = virtual local network created by Docker.
