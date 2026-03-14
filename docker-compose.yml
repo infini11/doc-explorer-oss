@@ -25,6 +25,21 @@ services:
     networks:
       - doc-explorer-net
     restart: unless-stopped
+
+  redis:
+    image: redis:7
+    container_name: doc-explorer-redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    networks:
+      - doc-explorer-net
+    restart: unless-stopped
+
   # ML SERVICES
 
   ollama:
@@ -149,7 +164,7 @@ services:
     depends_on:
       mlflow:
         condition: service_healthy
-        
+
     networks:
       - doc-explorer-net
     restart: no
