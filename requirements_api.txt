@@ -4,6 +4,7 @@ uvicorn[standard]
 python-multipart
 pydantic>=2.7
 pydantic-settings>=2.2
+datasets>=2.19
 
 # LangChain + LangGraph + LLM
 langchain
